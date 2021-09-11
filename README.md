@@ -1,0 +1,1 @@
+# training-reversi-functional-type
