@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <title>Page Title</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <link rel='stylesheet' type='text/css' media='screen' href='main.css'>
+    <script src='main.js'></script>
+</head>
+<body>
+    <canvas id="target" height="800" width="800"></canvas>
+    <script type="text/javascript">
+        const SIZE = 800;
+        const TROUT = 6;
+        const canvas = document.getElementById("target");
+        const ctx = canvas.getContext( "2d" );
+        const COLOR_WHITE = "#FFFFFF";
+        const COLOR_BLACK = "#000000";
+
+        const map = (() => {
+            const result = [];
+            for (let i = 0; i < TROUT; i++) {
+                result.push([]);
+                for (let j = 0; j < TROUT; j++) {
+                        result[i].push(null);
+                }
+            }
+
+            return result;
+        })();
+
+        function isInsideMap(x, y) {
+            return map.length > x && x >= 0 && map[x].length > y && y >= 0; 
+        }
+        
+        function setStone(x, y, color) {
+            function drawCycle(x, y, color) {
+                x = SIZE/TROUT*x - (SIZE/TROUT/2);
+                y = SIZE/TROUT*y - (SIZE/TROUT/2);
+                ctx.beginPath();
+                ctx.arc(x, y, SIZE/TROUT/2*0.75, 0*Math.PI/180, 360*Math.PI/180, false);
+                ctx.fillStyle = color;
+                ctx.fill();
+            }
+            drawCycle(x, y, color);
+            map[x-1][y-1] =  color;
+        }
+
+        function drawBoard() {
+            const drawRect = () => {
+                ctx.beginPath();
+                ctx.rect(0, 0, SIZE, SIZE);
+                ctx.fillStyle = "#007F00";
+                ctx.fill();
+            };
+            const drawLine = () => {
+                const oneLineLength = SIZE/TROUT;
+                ctx.beginPath();
+                for (let i = 1; i <= TROUT; i++) {
+                    // 横ライン
+                    ctx.moveTo(0, i*oneLineLength);
+                    ctx.lineTo(SIZE, i*oneLineLength);
+
+                    // 縦ライン
+                    ctx.moveTo(i*oneLineLength, 0);
+                    ctx.lineTo(i*oneLineLength, SIZE);
+
+                    ctx.closePath();
+                    ctx.stroke();
+                }
+                
+                
+            };
+            const setInitStone = () => {
+                setStone(TROUT/2, TROUT/2, COLOR_BLACK);
+                setStone(TROUT/2+1, TROUT/2, COLOR_WHITE);
+                setStone(TROUT/2, TROUT/2+1, COLOR_WHITE);
+                setStone(TROUT/2+1, TROUT/2+1, COLOR_BLACK);
+            }
+
+            drawRect();
+            drawLine();
+            setInitStone();
+        }
+        
+        function getPuttableCount(x, y, color) {
+            const getN = (x, y) => ({x, y: y-1});
+            const getS = (x, y) => ({x, y: y+1});
+            const getW = (x, y) => ({x: x+1, y});
+            const getE = (x, y) => ({x: x-1, y});
+            const getSE = (x, y) => ({x: x-1, y: y+1});
+            const getSW = (x, y) => ({x: x+1, y: y+1});
+            const getNE = (x, y) => ({x: x-1, y: y-1});
+            const getNW = (x, y) => ({x: x+1, y: y-1});
+            
+            let result = {};
+
+            [getN, getS, getW, getE, getSE, getSW, getNE, getSW].forEach(direction => {
+                let tmpCnt = 0;
+                const point = direction(x, y);
+                if (!isInsideMap(point.x-1, point.y-1) || map[point.x-1][point.y-1] === color || map[point.x-1][point.y-1] === null) return;
+                else tmpCnt++;
+
+                const checkNext = (x, y) => {
+                    const point = direction(x, y);
+                    if (!isInsideMap(point.x-1, point.y-1)) {
+                        tmpCnt = 0;
+                        return
+                    }
+                    if (map[point.x-1][point.y-1] !== color) tmpCnt++;
+                    else return;
+                    
+                    checkNext(point.x, point.y);
+                };
+                
+                checkNext(point.x, point.y);
+                if (tmpCnt > 0) result[getNE] = tmpCnt;
+            })
+
+            return result;
+        }
+
+        drawBoard();
+        canvas.addEventListener('click', (e) => {
+            const rect = e.target.getBoundingClientRect();
+            x = e.clientX - rect.left;
+            y = e.clientY - rect.top;
+            x = Math.ceil(x*TROUT/SIZE)
+            y = Math.ceil(y*TROUT/SIZE);
+            console.log(getPuttableCount(x, y, COLOR_WHITE));
+        }, false);
+    </script>
+</body>
+</html>
