@@ -43,6 +43,7 @@
                 ctx.fillStyle = color;
                 ctx.fill();
             }
+            if (!isInsideMap(x-1, y-1)) return;
             drawCycle(x, y, color);
             map[x-1][y-1] =  color;
         }
@@ -70,7 +71,6 @@
                     ctx.stroke();
                 }
                 
-                
             };
             const setInitStone = () => {
                 setStone(TROUT/2, TROUT/2, COLOR_BLACK);
@@ -93,10 +93,10 @@
             const getSW = (x, y) => ({x: x+1, y: y+1});
             const getNE = (x, y) => ({x: x-1, y: y-1});
             const getNW = (x, y) => ({x: x+1, y: y-1});
-            
+
             let result = {};
 
-            [getN, getS, getW, getE, getSE, getSW, getNE, getSW].forEach(direction => {
+            [getN, getS, getW, getE, getSE, getSW, getNE, getNW].forEach(direction => {
                 let tmpCnt = 0;
                 const point = direction(x, y);
                 if (!isInsideMap(point.x-1, point.y-1) || map[point.x-1][point.y-1] === color || map[point.x-1][point.y-1] === null) return;
@@ -113,22 +113,88 @@
                     
                     checkNext(point.x, point.y);
                 };
-                
+
                 checkNext(point.x, point.y);
-                if (tmpCnt > 0) result[getNE] = tmpCnt;
+                if (tmpCnt > 0) result[direction] = tmpCnt;
             })
 
             return result;
         }
+        
+        function fCPU (color) {
+            let max = -1;
+            let point = {x: -1, y: -1};
+            for (let i = 0; i < TROUT; i++) {
+                for (let j = 0; j < TROUT; j++) {
+                    if (map[i][j] !== null) continue;
+                    const directions = getPuttableCount(i+1, j+1, color);
+                    const sum = Object.entries(directions)
+                        .reduce((pre, [fn, cnt]) => pre + cnt, 0);
+                    if (sum > max) {
+                        max = sum;
+                        point.x = i+1;
+                        point.y = j+1;
+                    }
+                }
+            }
+            if (max === -1) return false;
 
+            const directions = getPuttableCount(point.x, point.y, color);
+            if (Object.keys(directions).length === 0) return false;
+            setStone(point.x, point.y, color);
+            Object.entries(directions)
+                .forEach(([fn, cnt]) => {
+                    let p = {x: point.x, y: point.y};
+                    for (let i = 0; i < cnt; i++) {
+                        p = eval(fn)(p.x, p.y);
+                        setStone(p.x, p.y, color);
+                    }
+                });
+           
+
+            return true;
+        }
+      
+
+        // main 処理
         drawBoard();
+        const myColor = COLOR_BLACK;
+        const enemyColor = COLOR_WHITE;
+        let processing = false;
         canvas.addEventListener('click', (e) => {
+            if (processing) return;
+            processing = true;
             const rect = e.target.getBoundingClientRect();
             x = e.clientX - rect.left;
             y = e.clientY - rect.top;
-            x = Math.ceil(x*TROUT/SIZE)
+            x = Math.ceil(x*TROUT/SIZE);
             y = Math.ceil(y*TROUT/SIZE);
-            console.log(getPuttableCount(x, y, COLOR_WHITE));
+            let point = {x, y};
+            if (map[x-1][y-1] !== null) {
+                processing = false;
+                return;
+            }
+
+            const directions = getPuttableCount(point.x, point.y, myColor);
+            if (Object.keys(directions).length > 0) {
+                setStone(point.x, point.y, myColor);
+                Object.entries(directions)
+                    .forEach(([fn, cnt]) => {
+                        let p = {x: point.x, y: point.y};
+                        for (let i = 0; i < cnt; i++) {
+                            p = eval(fn)(p.x, p.y);
+                            setStone(p.x, p.y, myColor);
+                        }
+                    });
+                setTimeout(()=> {
+                    if (!fCPU(enemyColor)) alert("置けねぇ");
+                    processing = false;
+                }, 400);
+            } else {
+                if (!fCPU(enemyColor)) alert("置けねぇ");
+                processing = false;
+            }
+        
         }, false);
     </script>
 </body>
