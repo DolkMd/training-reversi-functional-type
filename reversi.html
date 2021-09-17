@@ -17,7 +17,7 @@
         const ctx = canvas.getContext( "2d" );
         const COLOR_WHITE = "#FFFFFF";
         const COLOR_BLACK = "#000000";
-
+        const seed = Math.floor(Math.random() * TROUT * TROUT * 0.7);
         const map = (() => {
             const result = [];
             for (let i = 0; i < TROUT; i++) {
@@ -31,8 +31,91 @@
         })();
 
         function isInsideMap(x, y) {
-            return map.length > x && x >= 0 && map[x].length > y && y >= 0; 
+            return map.length > x-1 && x-1 >= 0 && map[x-1].length > y-1 && y-1 >= 0; 
         }
+        function isFullMap() {
+            for (let i = 0; i < map.length; i++) {
+                for (let j = 0; j < map[i].length; j++) {
+                   if (map[i][j] === null) return false;
+                }
+            }
+            return true;
+        }
+        function findMaxPoint(color) {
+            let max = -1;
+            let point = {x: -1, y: -1};
+            for (let i = 0; i < map.length; i++) {
+                for (let j = 0; j < map[i].length; j++) {
+                    if (map[i][j] !== null) continue;
+                    const directions = getPuttableCount(i+1, j+1, color);
+                    const sum = Object.entries(directions)
+                        .reduce((pre, [fn, cnt]) => pre + cnt, 0);
+                    if (sum > max) {
+                        max = sum;
+                        point.x = i+1;
+                        point.y = j+1;
+                    }
+                }
+            }
+            return (point.x === -1) ? {} : point;
+        }
+        function findMinPoint(color) {
+            let min = 99999999999999999;
+            let point = {x: -1, y: -1};
+            for (let i = 0; i < map.length; i++) {
+                for (let j = 0; j < map[i].length; j++) {
+                    if (map[i][j] !== null) continue;
+                    const directions = getPuttableCount(i+1, j+1, color);
+                    const sum = Object.entries(directions)
+                        .reduce((pre, [fn, cnt]) => pre + cnt, 0);
+                    if (sum < min && sum > 0) {
+                        min = sum;
+                        point.x = i+1;
+                        point.y = j+1;
+                    }
+                }
+            }
+            return (point.x === -1) ? {} : point;
+        }
+        function isPuttable(color) {
+           for (let i = 0; i < map.length; i++) {
+                for (let j = 0; j < map[i].length; j++) {
+                    if (map[i][j] !== null) continue;
+                    const directions = getPuttableCount(i+1, j+1, color);
+                    const sum = Object.entries(directions)
+                        .reduce((pre, [fn, cnt]) => pre + cnt, 0);
+                    if (sum > 0) {
+                       return true;
+                    }
+                }
+            }
+            return false;
+        }
+        function countColor(color) {
+            let cnt = 0;
+            for (let i = 0; i < map.length; i++) {
+                for (let j = 0; j < map[i].length; j++) {
+                    if (map[i][j] === color) cnt++;
+                }
+            }
+            return cnt;
+        }
+        function countNotNull() {
+            let cnt = 0;
+            for (let i = 0; i < map.length; i++) {
+                for (let j = 0; j < map[i].length; j++) {
+                    if (map[i][j] !== null) cnt++;
+                }
+            }
+            return cnt;
+        }
+        function getMapColor(x, y) {
+            return map[x-1][y-1];
+        }
+        function setMapColor(x, y, color) {
+            map[x-1][y-1] = color
+        }
+
         
         function setStone(x, y, color) {
             function drawCycle(x, y, color) {
@@ -43,9 +126,9 @@
                 ctx.fillStyle = color;
                 ctx.fill();
             }
-            if (!isInsideMap(x-1, y-1)) return;
+            if (!isInsideMap(x, y)) return;
             drawCycle(x, y, color);
-            map[x-1][y-1] =  color;
+            setMapColor(x, y, color);
         }
 
         function drawBoard() {
@@ -83,7 +166,7 @@
             drawLine();
             setInitStone();
         }
-        
+
         function getPuttableCount(x, y, color) {
             const getN = (x, y) => ({x, y: y-1});
             const getS = (x, y) => ({x, y: y+1});
@@ -99,16 +182,16 @@
             [getN, getS, getW, getE, getSE, getSW, getNE, getNW].forEach(direction => {
                 let tmpCnt = 0;
                 const point = direction(x, y);
-                if (!isInsideMap(point.x-1, point.y-1) || map[point.x-1][point.y-1] === color || map[point.x-1][point.y-1] === null) return;
+                if (!isInsideMap(point.x, point.y) || getMapColor(point.x, point.y) === color || getMapColor(point.x, point.y) === null) return;
                 else tmpCnt++;
 
                 const checkNext = (x, y) => {
                     const point = direction(x, y);
-                    if (!isInsideMap(point.x-1, point.y-1)) {
+                    if (!isInsideMap(point.x, point.y) || getMapColor(point.x, point.y) === null) {
                         tmpCnt = 0;
                         return
                     }
-                    if (map[point.x-1][point.y-1] !== color) tmpCnt++;
+                    if (getMapColor(point.x, point.y) !== color) tmpCnt++;
                     else return;
                     
                     checkNext(point.x, point.y);
@@ -120,81 +203,79 @@
 
             return result;
         }
-        
-        function fCPU (color) {
-            let max = -1;
-            let point = {x: -1, y: -1};
-            for (let i = 0; i < TROUT; i++) {
-                for (let j = 0; j < TROUT; j++) {
-                    if (map[i][j] !== null) continue;
-                    const directions = getPuttableCount(i+1, j+1, color);
-                    const sum = Object.entries(directions)
-                        .reduce((pre, [fn, cnt]) => pre + cnt, 0);
-                    if (sum > max) {
-                        max = sum;
-                        point.x = i+1;
-                        point.y = j+1;
-                    }
-                }
-            }
-            if (max === -1) return false;
-
-            const directions = getPuttableCount(point.x, point.y, color);
-            if (Object.keys(directions).length === 0) return false;
-            setStone(point.x, point.y, color);
-            Object.entries(directions)
-                .forEach(([fn, cnt]) => {
-                    let p = {x: point.x, y: point.y};
+        function reverse(x, y, color) {
+            const directions = getPuttableCount(x, y, color);
+            if (Object.keys(directions).length > 0) {
+                setStone(x, y, color);
+                Object.entries(directions).forEach(([fn, cnt]) => {
+                    let p = {x, y};
                     for (let i = 0; i < cnt; i++) {
                         p = eval(fn)(p.x, p.y);
                         setStone(p.x, p.y, color);
                     }
                 });
-           
+                return true;
+            }
 
-            return true;
+            return false;
         }
-      
+        
+        function fCPU (color) {
+            const point  = (countNotNull() > seed) ? findMinPoint(color) : findMaxPoint(color);
+            if (Object.keys(point).length === 0) return false;
+            return reverse(point.x, point.y, color);
+        }
 
+        
+        
         // main 処理
         drawBoard();
         const myColor = COLOR_BLACK;
         const enemyColor = COLOR_WHITE;
         let processing = false;
         canvas.addEventListener('click', (e) => {
+            const getXY = () => {
+                const rect = e.target.getBoundingClientRect();
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+                x = Math.ceil(x*TROUT/SIZE);
+                y = Math.ceil(y*TROUT/SIZE);
+                return {x, y};
+            };
+
             if (processing) return;
             processing = true;
-            const rect = e.target.getBoundingClientRect();
-            x = e.clientX - rect.left;
-            y = e.clientY - rect.top;
-            x = Math.ceil(x*TROUT/SIZE);
-            y = Math.ceil(y*TROUT/SIZE);
-            let point = {x, y};
-            if (map[x-1][y-1] !== null) {
+    
+            let point = getXY();
+            if (getMapColor(point.x, point.y) !== null) {
                 processing = false;
                 return;
             }
 
-            const directions = getPuttableCount(point.x, point.y, myColor);
-            if (Object.keys(directions).length > 0) {
-                setStone(point.x, point.y, myColor);
-                Object.entries(directions)
-                    .forEach(([fn, cnt]) => {
-                        let p = {x: point.x, y: point.y};
-                        for (let i = 0; i < cnt; i++) {
-                            p = eval(fn)(p.x, p.y);
-                            setStone(p.x, p.y, myColor);
-                        }
-                    });
+            if (reverse(point.x, point.y, myColor)) {
                 setTimeout(()=> {
-                    if (!fCPU(enemyColor)) alert("置けねぇ");
+                    let putted = false;
+                    do {
+                       if (!fCPU(enemyColor) && !putted) alert("置けねぇ");
+                       putted = true;
+                    } while(!isPuttable(myColor) && isPuttable(enemyColor));
+                    
+                    const myCnt = countColor(myColor);
+                    const enemyCnt = countColor(enemyColor);
+                    if (isFullMap() || (!isPuttable(myColor) && !isPuttable(enemyColor))) {
+                        if (myCnt === enemyCnt) alert("引き分け");
+                        else if (myCnt > enemyCnt) alert("あなたの勝ち!!!");
+                        else alert("どんまい???");
+                    } else {
+                        if (myCnt === 0) alert("どんまい");
+                        else if(enemyCnt === 0) alert("あなたの勝ち");
+                    }
                     processing = false;
+               
                 }, 400);
             } else {
-                if (!fCPU(enemyColor)) alert("置けねぇ");
                 processing = false;
             }
-        
         }, false);
     </script>
 </body>
