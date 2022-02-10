@@ -2,5 +2,5 @@
 
 ## Demo
 
-[GitHub Pages](https://japlengs.github.io/training-reversi-functional-type/reversi)
+[GitHub Pages](https://dolkmd.github.io/training-reversi-functional-type/reversi.html)
 
